@@ -3,14 +3,30 @@ export default async function handler(req, res) {
 
   const { text, type } = req.body;
 
-  let prompt;
+  let contents;
 
   if (type === 'parse') {
-    prompt = `Extraé la información de este CV en base64 y devolvé ÚNICAMENTE un JSON válido sin texto adicional con esta estructura exacta: {"name":"","title":"","email":"","phone":"","location":"","summary":"","experience":"","education":"","skills":"","languages":""}. CV en base64: ${text}`;
+    contents = [{
+      parts: [
+        {
+          inline_data: {
+            mime_type: 'application/pdf',
+            data: text
+          }
+        },
+        {
+          text: 'Extraé la información de este CV y devolvé ÚNICAMENTE un JSON válido sin texto adicional con esta estructura exacta: {"name":"","title":"","email":"","phone":"","location":"","summary":"","experience":"","education":"","skills":"","languages":""}'
+        }
+      ]
+    }];
   } else if (type === 'ats') {
-    prompt = `Analizá este CV para sistemas ATS y devolvé:\nPUNTUACIÓN: [1-100]\nFORTALEZAS:\n- ...\nPROBLEMAS:\n- ...\nPALABRAS CLAVE FALTANTES:\n- ...\nRECOMENDACIONES:\n- ...\n\nCV:\n${text}`;
+    contents = [{
+      parts: [{ text: `Analizá este CV para sistemas ATS y devolvé:\nPUNTUACIÓN: [1-100]\nFORTALEZAS:\n- ...\nPROBLEMAS:\n- ...\nPALABRAS CLAVE FALTANTES:\n- ...\nRECOMENDACIONES:\n- ...\n\nCV:\n${text}` }]
+    }];
   } else {
-    prompt = `Mejorá este texto de CV en español haciéndolo más impactante. Devolvé solo el texto mejorado sin explicaciones: "${text}"`;
+    contents = [{
+      parts: [{ text: `Mejorá este texto de CV en español haciéndolo más impactante. Devolvé solo el texto mejorado sin explicaciones: "${text}"` }]
+    }];
   }
 
   const response = await fetch(
@@ -18,9 +34,7 @@ export default async function handler(req, res) {
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
+      body: JSON.stringify({ contents })
     }
   );
 
