@@ -3,44 +3,28 @@ export default async function handler(req, res) {
 
   const { text, type } = req.body;
 
-  let messages;
+  let prompt;
 
   if (type === 'parse') {
-    messages = [{
-      role: 'user',
-      content: [
-        {
-          type: 'document',
-          source: { type: 'base64', media_type: 'application/pdf', data: text }
-        },
-        {
-          type: 'text',
-          text: 'Extraé la información de este CV y devolvé ÚNICAMENTE un JSON válido sin texto adicional con esta estructura: {"name":"","title":"","email":"","phone":"","location":"","summary":"","experience":"","education":"","skills":"","languages":""}'
-        }
-      ]
-    }];
+    prompt = `Extraé la información de este CV en base64 y devolvé ÚNICAMENTE un JSON válido sin texto adicional con esta estructura exacta: {"name":"","title":"","email":"","phone":"","location":"","summary":"","experience":"","education":"","skills":"","languages":""}. CV en base64: ${text}`;
+  } else if (type === 'ats') {
+    prompt = `Analizá este CV para sistemas ATS y devolvé:\nPUNTUACIÓN: [1-100]\nFORTALEZAS:\n- ...\nPROBLEMAS:\n- ...\nPALABRAS CLAVE FALTANTES:\n- ...\nRECOMENDACIONES:\n- ...\n\nCV:\n${text}`;
   } else {
-    const prompts = {
-      improve: `Mejorá este texto de CV en español haciéndolo más impactante. Devolvé solo el texto mejorado sin explicaciones: "${text}"`,
-      ats: `Analizá este CV para sistemas ATS y devolvé:\nPUNTUACIÓN: [1-100]\nFORTALEZAS:\n- ...\nPROBLEMAS:\n- ...\nPALABRAS CLAVE FALTANTES:\n- ...\nRECOMENDACIONES:\n- ...\n\nCV:\n${text}`
-    };
-    messages = [{ role: 'user', content: prompts[type] }];
+    prompt = `Mejorá este texto de CV en español haciéndolo más impactante. Devolvé solo el texto mejorado sin explicaciones: "${text}"`;
   }
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1500,
-      messages
-    })
-  });
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }]
+      })
+    }
+  );
 
   const data = await response.json();
-  res.status(200).json({ result: data.content[0].text });
+  const result = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  res.status(200).json({ result });
 }
